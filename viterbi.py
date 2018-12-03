@@ -11,7 +11,7 @@ class Slice(object):
         """ The initialize method for the slice.
 
         Arguments:
-        received_bits --- A string representing parity bits at current time step
+        received_bits --- A list representing parity bits at current time step
         conv_code --- A list of tuples representing the convolutional
             polynomials for the convolutional code. e.g. [(1,1,1), (0,1,1)]
         weights --- A tuple containing the cumulative weights of the nodes
@@ -19,6 +19,7 @@ class Slice(object):
         Returns:
         none
         """
+
         # TOOD determine whether the init method also needs a dictionary
         # of valid connections and generated parity bits.
 
@@ -30,6 +31,9 @@ class Slice(object):
         assert self.width == len(weights);
         for term in conv_code:
             assert self.width == len(term);
+
+        # Store received bits for time step
+        self.received_bits = received_bits
 
         # TODO implement this method
         pass
@@ -47,10 +51,17 @@ class Slice(object):
         distance --- An integer representing the Hamming distance between
             calc_bits and the received bits for that time step.
         """
+
         # TODO generalize this to do soft decoding
 
-        # TODO implement this method
-        pass
+        # Iterate through calculated bits and compare to received bits.
+        # Store number of different bits in total_distance.
+        total_distance = 0
+        for idx, bit in enumerate(calc_bits):
+            diff = abs(bit - self.received_bits[idx])
+            total_distance += diff
+
+        return total_distance
 
 
     def get_new_weights(self):
