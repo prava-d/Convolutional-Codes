@@ -129,11 +129,6 @@ class Slice(object):
         Returns:
         weights --- A tuple containing the cumulative node weights of new slice
         """
-        # TODO detemine if/how this method provides a way to backtrack along
-        # the shortest path. Perhaps it compiles a dictionary going backward
-        # from each minimum distance.
-
-        # TODO implement this
 
         # Initializes new_weights with max value weights
         new_weights = []
@@ -190,7 +185,7 @@ class trellis(object):
         Returns:
         none
         """
-
+        self.msg = []
         self.slices = []
 
         weight = (0, sys.maxsize, sys.maxsize, sys.maxsize)
@@ -201,12 +196,27 @@ class trellis(object):
             weight = a.get_new_weights()
             self.slices.append(a)
 
+        self.backtrace()
+
+    def backtrace(self):
+        weights = self.slices[-1].prev_weights
+        key = weights.index(min(weights))
+
+        idx_to_bit = {0: 0,
+            1: 1,
+            2: 0,
+            3: 1}
+
+        for a in self.slices[-2::-1]:
+            self.msg.append(idx_to_bit[key])
+            key = a.backtrack_dict[key]
+            
+
+        self.msg = self.msg[::-1]
 
 if __name__ == '__main__':
-    rcvd = ((1,1),(1,0),(1,1),(0,0),(0,1),(1,0))
+    rcvd = ((1,1),(1,0),(1,1),(0,0),(0,1),(1,0),(0,0))
     code = ((1, 1, 1), (0, 1, 1))
 
     trell = trellis(rcvd,code)
-
-    [print(slice.prev_weights) for slice in trell.slices]
-
+    print(trell.msg)
