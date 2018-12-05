@@ -137,6 +137,7 @@ class Slice(object):
 
         # Initializes new_weights with max value weights
         new_weights = []
+        new_key_to_old_key = {0:None, 1:None, 2:None, 3:None}
 
         for i in range(2 ** self.rate):
             new_weights.append(sys.maxsize)
@@ -149,12 +150,12 @@ class Slice(object):
             # Takes parity bits tuple and turns it from tuple with base 2 digits to a base 10 int
             # This is so that it can be used as an index
             parity_0_int = reduce(lambda acc, x: acc * 2 + x, parity_0)
-            
 
             weight_0 = self.get_hamming_distance(parity_0) + self.prev_weights[key_int]
 
             if(weight_0 < new_weights[msg_0_int]):
                 new_weights[msg_0_int] = weight_0
+                new_key_to_old_key[msg_0_int] = key_int
 
             # If the next msg bit is a 1
             parity_1 = self.convolve(key+(1,))
@@ -165,8 +166,12 @@ class Slice(object):
 
             weight_1 = self.get_hamming_distance(parity_1) + self.prev_weights[key_int]
 
+
             if(weight_0 < new_weights[msg_1_int]):
-                new_weights[msg_1_int] = weight_1   
+                new_weights[msg_1_int] = weight_1
+                new_key_to_old_key[msg_1_int] = key_int
+
+        self.backtrack_dict = new_key_to_old_key
         
         return tuple(new_weights)
 
