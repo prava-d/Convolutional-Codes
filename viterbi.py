@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+from functools import reduce
+import sys
+from sys import maxsize
 
 class Slice(object):
     """ An object representing a vertical slice of a trellis structure. It
@@ -36,9 +39,12 @@ class Slice(object):
         self.received_bits = received_bits
         self.prev_weights = prev_weights
         self.conv_code = conv_code
+        self.trellis_keys = []
 
-        # TODO implement this method
-        pass
+        # Initializes Unit Trellis Dictionary which is filled by generate_unit_tresllis
+        # Keys are states and values are possible next bits based on the state indicated by the key
+        self.unit_trellis = {}
+
 
 
     def generate_trellis_keys(self, width):
@@ -58,7 +64,7 @@ class Slice(object):
                 old_tuple = prev_keys[j]
                 trellis_keys.append(i + old_tuple)
 
-        return trellis_keys
+        self.trellis_keys = trellis_keys
 
 
     def generate_unit_trellis(self):
@@ -66,16 +72,13 @@ class Slice(object):
         width = self.width
         trellis = {}
 
-        # Generate key options for dictionary
-        keys = self.generate_trellis_keys(width)
-
         # Iterate over keys and determine possible next frames
-        for key in keys:
+        for key in self.trellis_keys:
             option_0 = key[1:] + (0,)
             option_1 = key[1:] + (1,)
             trellis[key] = [option_0, option_1]
 
-        return trellis
+        self.unit_trellis = trellis
 
 
     def get_hamming_distance(self, calc_bits):
@@ -130,16 +133,50 @@ class Slice(object):
         # the shortest path. Perhaps it compiles a dictionary going backward
         # from each minimum distance.
 
-        
-
         # TODO implement this
-        pass
+
+        # Initializes new_weights with max value weights
+        new_weights = []
+
+        for i in range(2 ** self.rate):
+            new_weights.append(sys.maxsize)
+
+        for key in self.trellis_keys:
+            key_int = reduce(lambda acc, x: acc * 2 + x, key)
+            # If the next msg bit is a 0
+            parity_0 = self.convolve(key+(0,))
+            msg_0_int = reduce(lambda acc, x: acc * 2 + x, key[1:]+(0,))
+            # Takes parity bits tuple and turns it from tuple with base 2 digits to a base 10 int
+            # This is so that it can be used as an index
+            parity_0_int = reduce(lambda acc, x: acc * 2 + x, parity_0)
+            
+
+            weight_0 = self.get_hamming_distance(parity_0) + self.prev_weights[key_int]
+
+            if(weight_0 < new_weights[msg_0_int]):
+                new_weights[msg_0_int] = weight_0
+
+            # If the next msg bit is a 1
+            parity_1 = self.convolve(key+(1,))
+            msg_1_int = reduce(lambda acc, x: acc * 2 + x, key[1:]+(1,))
+            # Takes parity bits tuple and turns it from tuple with base 2 digits to a base 10 int
+            # This is so that it can be used as an index for new_weights
+            parity_1_int = int(str(reduce(lambda acc, x: acc * 10 + x, parity_1)),2)
+
+            weight_1 = self.get_hamming_distance(parity_1) + self.prev_weights[key_int]
+
+            if(weight_0 < new_weights[msg_1_int]):
+                new_weights[msg_1_int] = weight_1   
+        
+        return tuple(new_weights)
 
 
 if __name__ == '__main__':
-    a = Slice((0, 1), ((1, 1), (1, 0)), (3, 4, 5, 6))
-    print(a.generate_trellis_keys(3))
-    print()
-    print(a.generate_unit_trellis())
-    print()
-    print(a.convolve((1, 1)))
+    rcvd = ((1,1),(1,0))
+    code = ((1, 1, 1), (0, 1, 1))
+    a = Slice(rcvd[0], code, (0, sys.maxsize, sys.maxsize, sys.maxsize))
+
+    a.generate_trellis_keys(a.width)
+    a.generate_unit_trellis()
+
+    print(a.get_new_weights())
