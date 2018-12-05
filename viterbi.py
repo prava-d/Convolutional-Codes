@@ -14,8 +14,8 @@ class Slice(object):
         """ The initialize method for the slice.
 
         Arguments:
-        received_bits --- A list representing parity bits at current time step
-        conv_code --- A list of tuples representing the convolutional
+        received_bits --- A tuple representing parity bits at current time step
+        conv_code --- A tuple of tuples representing the convolutional
             polynomials for the convolutional code. e.g. [(1,1,1), (0,1,1)]
         prev_weights --- A tuple containing the cumulative weights of the nodes
 
@@ -170,13 +170,37 @@ class Slice(object):
         
         return tuple(new_weights)
 
+class trellis(object):
+    """ An object representing an entire trellis with all weights calculated. Uses Slice objects to calculate weights.
+    Contains a backtrace function for finding the minimal weight path
+    """
+    def __init__(self, recieved_bits, code):
+        """ The initialize method for the trellis.
+
+        Arguments:
+        received_bits --- A tuple of tuples representing the recieved parity bits
+        conv_code --- A tuple of tuples representing the convolutional
+            polynomials for the convolutional code. e.g. ((1,1,1), (0,1,1))
+
+        Returns:
+        none
+        """
+
+        self.slices = []
+
+        weight = (0, sys.maxsize, sys.maxsize, sys.maxsize)
+        for bits in rcvd:
+            a = Slice(bits, code, weight)
+            a.generate_trellis_keys(a.width)
+            a.generate_unit_trellis()
+            weight = a.get_new_weights()
+            self.slices.append(a)
+
 
 if __name__ == '__main__':
-    rcvd = ((1,1),(1,0))
+    rcvd = ((1,1),(1,0),(1,1),(0,0),(0,1),(1,0))
     code = ((1, 1, 1), (0, 1, 1))
-    a = Slice(rcvd[0], code, (0, sys.maxsize, sys.maxsize, sys.maxsize))
 
-    a.generate_trellis_keys(a.width)
-    a.generate_unit_trellis()
+    trell = trellis(rcvd,code)
 
-    print(a.get_new_weights())
+    [print(slice.prev_weights) for slice in trell.slices]
