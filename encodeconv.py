@@ -1,7 +1,7 @@
 
 from random import randint
 
-generating_function = [(1,1,1),(1,1,0)]
+generating_function = [(1,1,1),(0,1,1)]
 message = "1010"
 
 #start off with K = 3
@@ -54,10 +54,19 @@ def genmsg():
 
 	return msg
 
+def stringToTuple(encmsg, rate):
+	assert len(encmsg)%rate == 0
+	encmsgtuple = ()
+	for i in range(0,len(encmsg))[0::rate]:
+		newtuple = [int(encmsg[j]) for j in range(i,i+rate)]
+		encmsgtuple = encmsgtuple + (tuple(newtuple),)
+	return encmsgtuple
+
+
 if __name__ == '__main__':
-	msg = genmsg()
+	msg = "1011"
 	encmsg = encode(generating_function,msg)
 	errmsg = generror(encmsg)
 	print(msg)
-	print(encmsg)
+	print(stringToTuple(encmsg,2))
 	print(errmsg)

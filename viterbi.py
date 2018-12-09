@@ -2,6 +2,7 @@
 from functools import reduce
 import sys
 from sys import maxsize
+from encodeconv import *
 
 class Slice(object):
     """ An object representing a vertical slice of a trellis structure. It
@@ -16,7 +17,7 @@ class Slice(object):
         Arguments:
         received_bits --- A tuple representing parity bits at current time step
         conv_code --- A tuple of tuples representing the convolutional
-            polynomials for the convolutional code. e.g. [(1,1,1), (0,1,1)]
+            polynomials for the convolutional code. e.g. ((1,1,1), (0,1,1))
         prev_weights --- A tuple containing the cumulative weights of the nodes
 
         Returns:
@@ -94,8 +95,6 @@ class Slice(object):
             calc_bits and the received bits for that time step.
         """
 
-        # TODO generalize this to do soft decoding
-
         # Iterate through calculated bits and compare to received bits.
         # Store number of different bits in total_distance.
         total_distance = 0
@@ -170,7 +169,7 @@ class Slice(object):
         
         return tuple(new_weights)
 
-class trellis(object):
+class Trellis(object):
     """ An object representing an entire trellis with all weights calculated. Uses Slice objects to calculate weights.
     Contains a backtrace function for finding the minimal weight path
     """
@@ -189,7 +188,7 @@ class trellis(object):
         self.slices = []
 
         weight = (0, sys.maxsize, sys.maxsize, sys.maxsize)
-        for bits in rcvd:
+        for bits in (recieved_bits+((0,0),)):
             a = Slice(bits, code, weight)
             a.generate_trellis_keys(a.width)
             a.generate_unit_trellis()
@@ -214,9 +213,44 @@ class trellis(object):
 
         self.msg = self.msg[::-1]
 
-if __name__ == '__main__':
-    rcvd = ((1,1),(1,0),(1,1),(0,0),(0,1),(1,0),(0,0))
-    code = ((1, 1, 1), (0, 1, 1))
+def TestCode(code, rate, testnumber):
+    """ A function for testing how well a convolutional code performs. 
+        Arguments:
+        code --- A list of tuples representing the convolutional
+            polynomials for the convolutional code. e.g. [(1,1,1), (0,1,1)]
+        rate --- The rate of the convolutional code
+        testnumber --- The number of tests to be done on the code
 
-    trell = trellis(rcvd,code)
-    print(trell.msg)
+        Returns:
+        none
+
+    """
+    success = 0                                     # Number of successful tests
+    print("Convolutional Code:")
+    print(code)
+    print()
+    for i in range(1,testnumber+1):
+        print("TEST NUMBER: %s" % i)
+        msg = genmsg()
+        encodedmsg = encode(code, msg)
+        rcvd = stringToTuple(encodedmsg,rate)
+        errormsg = generror(encodedmsg)
+        errormsgtuple = stringToTuple(errormsg, rate)
+        trell = Trellis(errormsgtuple,tuple(code))
+
+        if(''.join(str(e) for e in trell.msg[0:-2]) == msg):
+            success += 1
+
+        print("Msg:\n"+msg+"\n")
+        print("Encoded Msg:\n"+encodedmsg+"\n")
+        print("Encoded Msg with Error:\n"+errormsg+"\n")
+        print("Decoded Msg with Error:\n"+''.join(str(e) for e in trell.msg[0:-2]))
+
+    print("Number of Successes: %s" % success)
+    print("Number of Failurs: %s" % (testnumber-success))
+
+if __name__ == '__main__':
+    msg = "1011"
+    code = [(1,1,1),(0,1,1)]
+    #rcvd = stringToTuple(encode(code, msg),2)
+    TestCode(code,2,10000)
