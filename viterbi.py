@@ -3,6 +3,7 @@ from functools import reduce
 import sys
 from sys import maxsize
 from encodeconv import *
+import matplotlib.pyplot as plt
 
 class Slice(object):
     """ An object representing a vertical slice of a trellis structure. It
@@ -66,6 +67,7 @@ class Slice(object):
                 trellis_keys.append(i + old_tuple)
 
         self.trellis_keys = trellis_keys
+        return trellis_keys
 
 
     def generate_unit_trellis(self):
@@ -131,9 +133,10 @@ class Slice(object):
 
         # Initializes new_weights with max value weights
         new_weights = []
-        new_key_to_old_key = {0:None, 1:None, 2:None, 3:None}
+        new_key_to_old_key = {}
 
-        for i in range(2 ** self.rate):
+        for i in range(2 ** (self.width - 1)):
+            new_key_to_old_key[i] = None
             new_weights.append(sys.maxsize)
 
         for key in self.trellis_keys:
@@ -186,9 +189,11 @@ class Trellis(object):
         """
         self.msg = []
         self.slices = []
+        rate = len(code)
 
-        weight = (0, sys.maxsize, sys.maxsize, sys.maxsize)
-        for bits in (recieved_bits+((0,0),)):
+        k = len(code[0])
+        weight = (0,) + (sys.maxsize,) * (2**(k-1))
+        for bits in (recieved_bits+(((0,)*rate),)):
             a = Slice(bits, code, weight)
             a.generate_trellis_keys(a.width)
             a.generate_unit_trellis()
@@ -201,19 +206,15 @@ class Trellis(object):
         weights = self.slices[-1].prev_weights
         key = weights.index(min(weights))
 
-        idx_to_bit = {0: 0,
-            1: 1,
-            2: 0,
-            3: 1}
 
         for a in self.slices[-2::-1]:
-            self.msg.append(idx_to_bit[key])
+            bit = key%2
+            self.msg.append(bit)
             key = a.backtrack_dict[key]
             
-
         self.msg = self.msg[::-1]
 
-def TestCode(code, rate, testnumber):
+def TestCode(code, rate, testnumber, error_amt = 1):
     """ A function for testing how well a convolutional code performs. 
         Arguments:
         code --- A list of tuples representing the convolutional
@@ -226,31 +227,57 @@ def TestCode(code, rate, testnumber):
 
     """
     success = 0                                     # Number of successful tests
-    print("Convolutional Code:")
-    print(code)
-    print()
+    #print("Convolutional Code:")
+    #print(code)
+    #print()
     for i in range(1,testnumber+1):
-        print("TEST NUMBER: %s" % i)
+        if i%(int(testnumber/10)) == 0:
+            pass#print(str(10*int(10*i/testnumber)) + "%")
+        #print("TEST NUMBER: %s" % i)
         msg = genmsg()
         encodedmsg = encode(code, msg)
         rcvd = stringToTuple(encodedmsg,rate)
-        errormsg = generror(encodedmsg)
+        errormsg = generror(encodedmsg, error_amt)
         errormsgtuple = stringToTuple(errormsg, rate)
         trell = Trellis(errormsgtuple,tuple(code))
+        k = len(code[0])
 
-        if(''.join(str(e) for e in trell.msg[0:-2]) == msg):
+        if(''.join(str(e) for e in trell.msg[0:-(k-1)]) == msg):
             success += 1
 
-        print("Msg:\n"+msg+"\n")
-        print("Encoded Msg:\n"+encodedmsg+"\n")
-        print("Encoded Msg with Error:\n"+errormsg+"\n")
-        print("Decoded Msg with Error:\n"+''.join(str(e) for e in trell.msg[0:-2]))
+    #    print("Msg:\n"+msg+"\n")
+    #    print("Encoded Msg:\n"+encodedmsg+"\n")
+    #    print("Encoded Msg with Error:\n"+errormsg+"\n")
+    #    print("Decoded Msg with Error:\n"+''.join(str(e) for e in trell.msg[0:-2]))
 
-    print("Number of Successes: %s" % success)
-    print("Number of Failurs: %s" % (testnumber-success))
+    #print("Number of Successes: %s" % success)
+    #print("Number of Failurs: %s" % (testnumber-success))
+    return(success/(testnumber))
 
 if __name__ == '__main__':
-    msg = "1011"
-    code = [(1,1,1),(0,1,1)]
+    code7 = [(1,1,0,1,1,0,1),(1,0,0,1,1,1,1)]
+    code6bad = [(0,1,1,0,1,1),(1,0,0,0,1,1)]
+    code7good = [(0,1,1,0,1,0,1),(1,0,0,1,0,1,1)]
+    code6good = [(0,1,0,1,1,1),(1,0,0,0,1,1)]
+    code5good = [(0,1,1,1,1),(1,0,0,0,1)]
+    code4good = [(0,1,1,1),(0,1,0,1)]
+    code3good = [(0, 1, 1),(1, 1, 1)]
     #rcvd = stringToTuple(encode(code, msg),2)
-    TestCode(code,2,10000)
+
+    codes = [code3good, code4good, code5good, code6good, code7good]
+
+    xs = []
+    ys = []
+    for code in codes:
+        print(code)
+        for i in range(11):
+            print(i)
+            xs.append(i)
+            ys.append(TestCode(code,2,5000,i))
+        plt.plot(xs, ys, '.-')
+        xs = []
+        ys = []
+    plt.legend(["Code Width 3", "Code Width 4", "Code Width 5", "Code Width 6", "Code Width 7"])
+    plt.xlabel("Number of Errors")
+    plt.ylabel("Decoding Accuracy")
+    plt.show()
